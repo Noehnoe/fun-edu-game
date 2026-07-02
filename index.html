@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Brainy Bunch — Mini-Game Arcade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- Decorative animated background -->
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <div class="app-shell">
+    <!-- Top HUD -->
+    <header class="topbar">
+      <button class="logo" id="logo-btn" title="Home">
+        <span class="logo-mark">🧠</span>
+        <span class="logo-text">Brainy<br>Bunch</span>
+      </button>
+
+      <div class="hud">
+        <div class="hud-chip" id="coins-chip" title="Coins">
+          <span class="chip-icon">🪙</span>
+          <span class="chip-value" id="coin-count">0</span>
+        </div>
+        <div class="hud-chip level-chip" id="level-chip" title="Level &amp; XP">
+          <span class="chip-icon level-badge" id="level-badge">1</span>
+          <div class="xp-wrap">
+            <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
+            <span class="xp-text" id="xp-text">0 / 100 XP</span>
+          </div>
+        </div>
+        <button class="icon-btn" id="sound-btn" title="Sound on/off">🔊</button>
+        <button class="icon-btn" id="settings-btn" title="Settings">⚙️</button>
+        <button class="icon-btn" id="reset-btn" title="Reset progress">♻️</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- HOME SCREEN -->
+      <section class="screen" id="home-screen">
+        <div class="hero">
+          <div class="hero-text">
+            <h1>Pick a Mini-Game!</h1>
+            <p>13 brain-boosting games. Earn coins, level up, and collect badges.</p>
+          </div>
+          <div class="hero-progress">
+            <div class="ring" id="completion-ring">
+              <span id="completion-pct">0%</span>
+            </div>
+            <div class="hero-stats">
+              <div><strong id="games-played-stat">0</strong><span>plays</span></div>
+              <div><strong id="badges-stat">0</strong><span>badges</span></div>
+              <div><strong id="best-streak-stat">0</strong><span>best level</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <h2>🎮 Games</h2>
+          <div class="filter-tabs" id="filter-tabs">
+            <button class="tab active" data-cat="all">All</button>
+            <button class="tab" data-cat="logic">Logic</button>
+            <button class="tab" data-cat="memory">Memory</button>
+            <button class="tab" data-cat="math">Math</button>
+            <button class="tab" data-cat="language">Language</button>
+            <button class="tab" data-cat="reflex">Reflex</button>
+          </div>
+        </div>
+
+        <div class="game-grid" id="game-grid"></div>
+
+        <div class="section-head"><h2>🏅 Badges</h2></div>
+        <div class="badge-grid" id="badge-grid"></div>
+      </section>
+
+      <!-- GAME SCREEN -->
+      <section class="screen hidden" id="play-screen">
+        <div class="play-top">
+          <button class="back-btn" id="back-btn">‹ Menu</button>
+          <div class="play-title">
+            <span class="play-emoji" id="play-emoji">🎯</span>
+            <div>
+              <h2 id="play-name">Game</h2>
+              <p id="play-desc">Description</p>
+            </div>
+          </div>
+          <div class="play-hud" id="play-hud"></div>
+        </div>
+        <div class="stage" id="stage"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Particle / confetti overlay -->
+  <canvas id="fx-canvas" aria-hidden="true"></canvas>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Result modal -->
+  <div class="modal-backdrop hidden" id="modal-backdrop">
+    <div class="modal" id="modal">
+      <div class="modal-emoji" id="modal-emoji">🎉</div>
+      <h2 id="modal-title">Nice!</h2>
+      <p id="modal-msg">You did it.</p>
+      <div class="modal-rewards" id="modal-rewards"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modal-menu">Menu</button>
+        <button class="btn btn-primary" id="modal-again">Play again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-backdrop hidden" id="settings-backdrop">
+    <div class="modal settings-modal">
+      <div class="modal-emoji">⚙️</div>
+      <h2>Settings</h2>
+      <div class="setting-row">
+        <label for="music-slider">🎵 Music</label>
+        <input type="range" class="vol" id="music-slider" min="0" max="100" value="35" />
+        <span class="setting-val" id="music-val">35%</span>
+      </div>
+      <div class="setting-row">
+        <label for="sfx-slider">🔔 Sounds</label>
+        <input type="range" class="vol" id="sfx-slider" min="0" max="100" value="100" />
+        <span class="setting-val" id="sfx-val">100%</span>
+      </div>
+      <p class="settings-note">The 🔊 button up top mutes everything at once.</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="settings-close">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/fx.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/games/vials.js"></script>
+  <script src="js/games/math.js"></script>
+  <script src="js/games/memory.js"></script>
+  <script src="js/games/simon.js"></script>
+  <script src="js/games/scramble.js"></script>
+  <script src="js/games/merge.js"></script>
+  <script src="js/games/whack.js"></script>
+  <script src="js/games/lightsout.js"></script>
+  <script src="js/games/snake.js"></script>
+  <script src="js/games/slider.js"></script>
+  <script src="js/games/reaction.js"></script>
+  <script src="js/games/translate.js"></script>
+  <script src="js/games/pattern.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
