@@ -87,7 +87,7 @@ Game.register({
         api.updateHud('combo', 'x1');
         [...grid.children].forEach(c => { if (+c.textContent === q.ans) c.classList.add('correct'); });
       }
-      setTimeout(() => { if (timeLeft > 0) render(); }, 520);
+      api.timeout(() => { if (timeLeft > 0) render(); }, 520);
     }
 
     timer = setInterval(() => {

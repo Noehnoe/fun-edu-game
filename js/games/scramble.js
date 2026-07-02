@@ -117,11 +117,11 @@ Game.register({
         [...answer.children].forEach(c => c.classList.add('correct-cell'));
         const r = answer.getBoundingClientRect();
         api.fx.burst(r.left + r.width / 2, r.top + 20, { count: 16, shape: 'rect' });
-        setTimeout(next, 700);
+        api.timeout(next, 700);
       } else {
         api.sound.play('bad');
         answer.classList.add('shake-x');
-        setTimeout(() => {
+        api.timeout(() => {
           answer.classList.remove('shake-x');
           build = []; current.letters.forEach(l => l.used = false); render();
         }, 500);

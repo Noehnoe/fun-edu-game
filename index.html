@@ -45,7 +45,8 @@
         <div class="hero">
           <div class="hero-text">
             <h1>Pick a Mini-Game!</h1>
-            <p>13 brain-boosting games. Earn coins, level up, and collect badges.</p>
+            <p id="hero-sub">Brain-boosting games. Earn coins, level up, and collect badges.</p>
+            <button class="rebirth-btn hidden" id="rebirth-btn">🌀 Rebirth — reset &amp; boost all rewards</button>
           </div>
           <div class="hero-progress">
             <div class="ring" id="completion-ring">
@@ -54,7 +55,8 @@
             <div class="hero-stats">
               <div><strong id="games-played-stat">0</strong><span>plays</span></div>
               <div><strong id="badges-stat">0</strong><span>badges</span></div>
-              <div><strong id="best-streak-stat">0</strong><span>best level</span></div>
+              <div><strong id="best-streak-stat">0</strong><span>level</span></div>
+              <div><strong id="rebirth-stat">0</strong><span>rebirths</span></div>
             </div>
           </div>
         </div>
@@ -72,6 +74,9 @@
         </div>
 
         <div class="game-grid" id="game-grid"></div>
+
+        <div class="section-head"><h2>🛍️ Theme Shop</h2></div>
+        <div class="shop-grid" id="shop-grid"></div>
 
         <div class="section-head"><h2>🏅 Badges</h2></div>
         <div class="badge-grid" id="badge-grid"></div>
@@ -153,6 +158,16 @@
   <script src="js/games/reaction.js"></script>
   <script src="js/games/translate.js"></script>
   <script src="js/games/pattern.js"></script>
+  <script src="js/games/oddone.js"></script>
+  <script src="js/games/numberhunt.js"></script>
+  <script src="js/games/dots.js"></script>
+  <script src="js/games/stroop.js"></script>
+  <script src="js/games/higherlower.js"></script>
+  <script src="js/games/missing.js"></script>
+  <script src="js/games/emojiriddle.js"></script>
+  <script src="js/games/digits.js"></script>
+  <script src="js/games/maze.js"></script>
+  <script src="js/games/catch.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

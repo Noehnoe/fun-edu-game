@@ -62,7 +62,7 @@ Game.register({
         i++;
         if (i >= seq.length) {
           clearInterval(t);
-          setTimeout(() => {
+          api.timeout(() => {
             playing = false;
             status.textContent = 'Your turn! 🎯';
             pads.forEach(p => p.disabled = false);
@@ -81,7 +81,7 @@ Game.register({
           pads.forEach(p => p.disabled = true);
           api.sound.play('good');
           if (round >= 8) api.flag('mastermind');
-          setTimeout(nextRound, 650);
+          api.timeout(nextRound, 650);
         }
       } else {
         fail();
@@ -102,6 +102,6 @@ Game.register({
       });
     }
 
-    setTimeout(nextRound, 700);
+    api.timeout(nextRound, 700);
   }
 });

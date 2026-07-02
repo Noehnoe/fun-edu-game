@@ -79,7 +79,7 @@ Game.register({
         [...grid.children].forEach(c => { if (c.textContent === eng) c.classList.add('correct'); });
         api.toast(`"${queue[idx][0]}" means "${eng}"`);
       }
-      setTimeout(() => { idx++; idx >= queue.length ? end() : render(); }, 850);
+      api.timeout(() => { idx++; idx >= queue.length ? end() : render(); }, 850);
     }
 
     function end() {

@@ -17,6 +17,15 @@
   const games = [];        // registered game defs (in order)
   const gameById = {};
 
+  const THEMES = [
+    { id: 'default', name: 'Sky Pop', icon: '🌤️', price: 0,    c: ['#8ad7ff', '#c6b8ff', '#ffd6f0'] },
+    { id: 'ocean',   name: 'Ocean',   icon: '🌊', price: 250,  c: ['#6ee7ff', '#4dabf7', '#b3f5e6'] },
+    { id: 'sunset',  name: 'Sunset',  icon: '🌇', price: 450,  c: ['#ffd43b', '#ff9a6b', '#ff6baa'] },
+    { id: 'forest',  name: 'Forest',  icon: '🌲', price: 700,  c: ['#b2f2bb', '#69db7c', '#e9fac8'] },
+    { id: 'candy',   name: 'Candy',   icon: '🍭', price: 1000, c: ['#ffc9de', '#eebefa', '#c5f6fa'] },
+    { id: 'space',   name: 'Space',   icon: '🪐', price: 1500, c: ['#4c4a78', '#7c5cff', '#2b2150'] }
+  ];
+
   /* ---------------- state ---------------- */
   const defaultState = {
     coins: 0,
@@ -29,7 +38,10 @@
     badges: [],         // earned badge ids
     soundOn: true,
     musicVol: 0.35,     // 0..1
-    sfxVol: 1           // 0..1
+    sfxVol: 1,          // 0..1
+    themes: ['default'],// owned theme ids
+    theme: 'default',   // equipped theme
+    rebirths: 0         // prestige count (permanent reward multiplier)
   };
   let state = load();
 
@@ -51,12 +63,14 @@
   }
 
   function unlockThreshold(def, index) {
-    // unlocks staggered by coin total; first few are free
+    // unlocks staggered by lifetime coins earned; first few are free
     if (def.unlockAt != null) return def.unlockAt;
-    const steps = [0, 0, 0, 40, 80, 140, 220, 320, 440, 600, 800, 1050, 1350];
-    return steps[index] != null ? steps[index] : 0;
+    const steps = [0, 0, 0, 40, 80, 140, 220, 320, 440, 600, 800, 1050, 1350,
+                   1700, 2100, 2550, 3050, 3600, 4200, 4850, 5550, 6300, 7100];
+    return steps[index] != null ? steps[index] : 7100 + (index - steps.length + 1) * 850;
   }
-  function isUnlocked(def) { return state.coins >= def._unlock; }
+  // lifetime earnings, NOT spendable coins — spending in the shop can never re-lock a game
+  function isUnlocked(def) { return state.earned >= def._unlock; }
 
   /* ---------------- badges ---------------- */
   const BADGES = [
@@ -71,7 +85,9 @@
     { id: 'flash',     icon: '⚡', name: 'Lightning',      desc: 'React in under 300 ms',  rule: s => !!s.flags.flash },
     { id: 'perfect',   icon: '💯', name: 'Flawless',       desc: 'Get a perfect score',    rule: s => !!s.flags.perfect },
     { id: 'polyglot',  icon: '🔤', name: 'Polyglot',       desc: 'Play both word games',   rule: s => s.played.includes('scramble') && s.played.includes('translate') },
-    { id: 'streak10',  icon: '🔥', name: 'On Fire',        desc: 'Play 10 rounds total',   rule: s => s.plays >= 10 }
+    { id: 'streak10',  icon: '🔥', name: 'On Fire',        desc: 'Play 10 rounds total',   rule: s => s.plays >= 10 },
+    { id: 'shopper',   icon: '🛍️', name: 'Style Icon',     desc: 'Buy your first theme',   rule: s => (s.themes || []).length >= 2 },
+    { id: 'reborn',    icon: '🌀', name: 'Reborn',         desc: 'Rebirth for the first time', rule: s => (s.rebirths || 0) >= 1 }
   ];
 
   function checkBadges() {
@@ -106,7 +122,8 @@
      'modal-backdrop','modal','modal-emoji','modal-title','modal-msg','modal-rewards',
      'modal-menu','modal-again',
      'settings-btn','settings-backdrop','settings-close',
-     'music-slider','music-val','sfx-slider','sfx-val'].forEach(id => {
+     'music-slider','music-val','sfx-slider','sfx-val',
+     'shop-grid','rebirth-btn','rebirth-stat','hero-sub'].forEach(id => {
       el[id] = document.getElementById(id);
     });
   }
@@ -125,6 +142,8 @@
     el['games-played-stat'].textContent = state.plays;
     el['badges-stat'].textContent = state.badges.length;
     el['best-streak-stat'].textContent = li.level;
+    el['rebirth-stat'].textContent = state.rebirths || 0;
+    el['rebirth-btn'].classList.toggle('hidden', !canRebirth());
   }
 
   let activeFilter = 'all';
@@ -148,12 +167,12 @@
           <span class="gc-cat">${CATS[def.category].label}</span>
           ${best != null ? `<span class="gc-best">★ ${best}</span>` : ''}
         </div>
-        ${unlocked ? '' : `<div class="lock-overlay"><span><span class="lock-icon">🔒</span>${def._unlock} 🪙 to unlock</span></div>`}
+        ${unlocked ? '' : `<div class="lock-overlay"><span><span class="lock-icon">🔒</span>Earn ${def._unlock} 🪙 total</span></div>`}
       `;
       card.addEventListener('click', () => {
         if (!unlocked) {
           FX.sound.play('bad');
-          toast(`Earn ${def._unlock - state.coins} more coins to unlock!`);
+          toast(`Earn ${def._unlock - state.earned} more coins to unlock!`);
           return;
         }
         FX.sound.play('whoosh');
@@ -181,7 +200,75 @@
     });
   }
 
-  function renderAll() { renderHud(); renderGrid(); renderBadges(); }
+  /* ---------------- theme shop ---------------- */
+  function applyTheme() {
+    document.body.dataset.theme = state.theme || 'default';
+  }
+
+  function renderShop() {
+    const grid = el['shop-grid'];
+    if (!grid) return;
+    grid.innerHTML = '';
+    THEMES.forEach(t => {
+      const owned = state.themes.includes(t.id);
+      const equipped = state.theme === t.id;
+      const card = document.createElement('div');
+      card.className = 'shop-card' + (equipped ? ' equipped' : '');
+      const canAfford = state.coins >= t.price;
+      card.innerHTML = `
+        <div class="swatch" style="background:linear-gradient(135deg, ${t.c[0]}, ${t.c[1]} 55%, ${t.c[2]})"></div>
+        <div class="shop-name">${t.icon} ${t.name}</div>
+        <button class="btn shop-buy ${equipped ? 'btn-good' : owned ? 'btn-ghost' : canAfford ? 'btn-primary' : 'btn-ghost'}"
+                ${equipped || (!owned && !canAfford) ? 'disabled' : ''}>
+          ${equipped ? '✔ Equipped' : owned ? 'Equip' : t.price + ' 🪙'}
+        </button>`;
+      card.querySelector('.shop-buy').addEventListener('click', () => shopAction(t));
+      grid.appendChild(card);
+    });
+  }
+
+  function shopAction(t) {
+    if (state.theme === t.id) return;
+    if (state.themes.includes(t.id)) {
+      state.theme = t.id;
+      FX.sound.play('pop');
+      toast(`${t.icon} ${t.name} equipped!`);
+    } else {
+      if (state.coins < t.price) { FX.sound.play('bad'); toast(`Need ${t.price - state.coins} more coins!`); return; }
+      state.coins -= t.price;
+      state.themes.push(t.id);
+      state.theme = t.id;
+      FX.sound.play('unlock');
+      FX.confetti({ count: 70 });
+      toast(`${t.icon} ${t.name} unlocked & equipped!`);
+    }
+    save();
+    checkBadges();
+    renderAll();
+  }
+
+  /* ---------------- rebirth ---------------- */
+  function canRebirth() { return state.played.length >= games.length; }
+
+  function doRebirth() {
+    if (!canRebirth()) return;
+    const nextMult = 1 + (state.rebirths + 1) * 0.25;
+    if (!confirm(`🌀 REBIRTH?\n\nYour coins, XP, level and game unlocks reset — but you keep your badges, themes and settings, and ALL future rewards are boosted to x${nextMult} forever.`)) return;
+    state.rebirths++;
+    state.coins = 0; state.earned = 0; state.xp = 0; state.plays = 0;
+    state.played = []; state.best = {};
+    save();
+    checkBadges();
+    FX.sound.play('level');
+    FX.fireworks(8);
+    FX.starShower({ count: 90 });
+    FX.confetti({ count: 150 });
+    FX.flash('rgba(204,93,232,0.3)', 500);
+    toast(`🌀 Rebirth ${state.rebirths}! All rewards now x${1 + state.rebirths * 0.25}`);
+    renderAll();
+  }
+
+  function renderAll() { applyTheme(); renderHud(); renderGrid(); renderBadges(); renderShop(); }
 
   /* ---------------- toast ---------------- */
   let toastTimer = null;
@@ -279,9 +366,18 @@
 
     function applyRewards(coins, xp) {
       const before = levelInfo(state.xp).level;
+      const lockedBefore = games.filter(d => !isUnlocked(d));
       state.coins += coins;
       state.earned += coins;
       state.xp += xp;
+      // announce games that just crossed their unlock threshold
+      lockedBefore.filter(d => isUnlocked(d)).forEach((d, i) => {
+        setTimeout(() => {
+          toast(`🔓 New game unlocked: ${d.emoji} ${d.name}!`);
+          FX.sound.play('unlock');
+          FX.confetti({ count: 60 });
+        }, 900 + i * 1100);
+      });
       const after = levelInfo(state.xp).level;
       if (after > before) {
         setTimeout(() => {
@@ -299,7 +395,8 @@
     }
 
     function finish(kind, opts) {
-      if (sess.finished) return;
+      // ignore finishes from a session the player already left (stale timers)
+      if (sess.finished || sess !== session) return;
       sess.finished = true;
       recordPlay();
 
@@ -308,6 +405,13 @@
       let xp = opts.xp != null ? opts.xp : (kind === 'win' ? base.xp : Math.round(base.xp * 0.3));
       coins = Math.max(0, Math.round(coins));
       xp = Math.max(0, Math.round(xp));
+
+      const mult = 1 + (state.rebirths || 0) * 0.25;
+      if (mult > 1) {
+        coins = Math.round(coins * mult);
+        xp = Math.round(xp * mult);
+        opts.stats = (opts.stats || []).concat(`🌀 x${mult} boost`);
+      }
 
       if (opts.best != null) recordBest(opts.best);
       if (opts.flags) opts.flags.forEach(f => state.flags[f] = true);
@@ -341,6 +445,9 @@
       sound: FX.sound,
       fx: FX,
       onCleanup(fn) { sess.cleanups.push(fn); },
+      // session-safe timers: auto-cleared when the player leaves the game
+      timeout(fn, ms) { const t = setTimeout(fn, ms); sess.cleanups.push(() => clearTimeout(t)); return t; },
+      interval(fn, ms) { const t = setInterval(fn, ms); sess.cleanups.push(() => clearInterval(t)); return t; },
       flag(name) { state.flags[name] = true; save(); checkBadges(); },
       best: state.best[def.id],
       win(opts) { finish('win', opts || {}); },
@@ -465,6 +572,8 @@
     el['sound-btn'].textContent = state.soundOn ? '🔊' : '🔇';
     el['sound-btn'].classList.toggle('muted', !state.soundOn);
     wireSettings();
+    el['rebirth-btn'].addEventListener('click', doRebirth);
+    el['hero-sub'].textContent = `${games.length} brain-boosting games. Earn coins, level up, and collect badges.`;
 
     el['back-btn'].addEventListener('click', () => { FX.sound.play('whoosh'); goHome(); });
     el['logo-btn'].addEventListener('click', () => { FX.sound.play('click'); goHome(); });

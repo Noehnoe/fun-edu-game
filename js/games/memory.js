@@ -51,12 +51,12 @@ Game.register({
         const r = card.getBoundingClientRect();
         api.fx.emojiBurst(r.left + r.width / 2, r.top + r.height / 2, card.dataset.face, 6);
         first = null;
-        if (matched === POOL.length) setTimeout(win, 450);
+        if (matched === POOL.length) api.timeout(win, 450);
       } else {
         lock = true;
         const a = first, b = card; first = null;
         api.sound.play('bad');
-        setTimeout(() => { a.classList.remove('flipped'); b.classList.remove('flipped'); lock = false; }, 750);
+        api.timeout(() => { a.classList.remove('flipped'); b.classList.remove('flipped'); lock = false; }, 750);
       }
     }
 

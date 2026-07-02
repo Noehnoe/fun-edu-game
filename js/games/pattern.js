@@ -70,7 +70,7 @@ Game.register({
           accepting = false;
           api.sound.play('good');
           status.textContent = 'Perfect! ✨';
-          setTimeout(nextRound, 700);
+          api.timeout(nextRound, 700);
         }
       } else {
         cell.classList.add('bad');
@@ -93,6 +93,6 @@ Game.register({
       });
     }
 
-    setTimeout(nextRound, 700);
+    api.timeout(nextRound, 700);
   }
 });

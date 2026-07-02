@@ -747,3 +747,129 @@ input[type="range"].vol::-moz-range-thumb {
 /* ---- Translate ---- */
 .travel-choice { font-size: 1.15rem; }
 
+/* ---- Odd One Out ---- */
+.odd-grid { display: grid; gap: 8px; }
+.odd-cell {
+  font-size: 1.8rem; width: 50px; height: 50px; max-width: 13vw;
+  background: #fff; border: none; border-radius: 12px; cursor: pointer;
+  box-shadow: 0 4px 0 rgba(43,33,80,.1); transition: transform .08s;
+  display: grid; place-items: center;
+}
+.odd-cell:active { transform: scale(.92); }
+.odd-cell.found { background: #d3f9d8; }
+
+/* ---- Number Hunt ---- */
+.hunt-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.hunt-cell {
+  width: 56px; height: 56px; max-width: 16vw; border: none; border-radius: 12px;
+  background: #fff; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800;
+  color: var(--ink); cursor: pointer; box-shadow: 0 4px 0 rgba(43,33,80,.12);
+}
+.hunt-cell:active { transform: translateY(2px); }
+.hunt-cell.found { background: var(--p-green); color: #fff; box-shadow: none; }
+
+/* ---- Dot Count ---- */
+.dot-box {
+  position: relative; width: min(340px, 84vw); height: 210px;
+  background: #fff; border-radius: 16px; box-shadow: var(--shadow);
+}
+.dot { position: absolute; border-radius: 50%; box-shadow: inset 0 -3px 0 rgba(0,0,0,.15); }
+
+/* ---- Color Clash (Stroop) ---- */
+.stroop-word {
+  font-family: var(--font-display); font-size: clamp(2.4rem, 9vw, 3.4rem); font-weight: 800;
+  background: #fff; padding: 18px 48px; border-radius: 20px;
+  box-shadow: var(--shadow); letter-spacing: 3px;
+}
+.stroop-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.stroop-btn { font-size: 1.25rem; min-width: 130px; }
+
+/* ---- Higher or Lower ---- */
+.hl-card {
+  width: 150px; height: 190px;
+  background: linear-gradient(160deg, #fff, #f2ecff);
+  border-radius: 20px; border: 4px solid #fff;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 3.4rem; font-weight: 800; color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.hl-card.flip { animation: pop .3s ease; }
+
+/* ---- Missing Letter ---- */
+.ml-hint { font-size: 3.2rem; filter: drop-shadow(0 3px 0 rgba(0,0,0,.12)); }
+.ml-word { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.ml-cell {
+  width: 40px; height: 50px; background: #fff; border-radius: 10px;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; color: var(--ink);
+  box-shadow: 0 4px 0 rgba(43,33,80,.1);
+}
+.ml-cell.gap { background: #fff6d6; border: 3px dashed var(--p-orange); color: var(--p-orange); }
+
+/* ---- Emoji Riddle ---- */
+.riddle-emojis {
+  font-size: clamp(2.4rem, 9vw, 3.2rem);
+  background: #fff; padding: 14px 34px; border-radius: 20px; box-shadow: var(--shadow);
+}
+
+/* ---- Number Recall ---- */
+.digit-display {
+  min-width: 230px; min-height: 66px; text-align: center;
+  font-family: var(--font-display); font-size: 2.4rem; font-weight: 800; letter-spacing: 7px;
+  background: #fff; padding: 12px 22px; border-radius: 16px; box-shadow: var(--shadow);
+  color: var(--ink);
+}
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.key {
+  width: 66px; height: 50px; max-width: 20vw; border: none; border-radius: 12px;
+  background: #fff; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800;
+  color: var(--ink); cursor: pointer; box-shadow: 0 4px 0 rgba(43,33,80,.12);
+}
+.key:active { transform: translateY(3px); box-shadow: none; }
+
+/* ---- Maze / Catch canvases ---- */
+.maze-canvas, .catch-canvas {
+  border-radius: 16px; box-shadow: var(--shadow);
+  background: #fff; touch-action: none; max-width: 100%;
+}
+
+/* ---- Theme Shop ---- */
+.shop-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px; margin-bottom: 30px;
+}
+.shop-card {
+  background: #fff; border-radius: 18px; padding: 14px; text-align: center;
+  box-shadow: var(--shadow); transition: transform .15s ease;
+}
+.shop-card:hover { transform: translateY(-3px); }
+.shop-card.equipped { outline: 4px solid var(--p-green); }
+.swatch {
+  height: 46px; border-radius: 12px; margin-bottom: 8px;
+  border: 3px solid #fff; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+}
+.shop-name { font-weight: 800; font-family: var(--font-display); margin-bottom: 4px; }
+.shop-buy { width: 100%; padding: 9px 10px; font-size: .9rem; }
+.shop-buy:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ---- Rebirth ---- */
+.rebirth-btn {
+  margin-top: 12px; border: none; border-radius: 14px; padding: 11px 20px;
+  font-family: var(--font-display); font-weight: 800; font-size: .95rem;
+  background: linear-gradient(160deg, #cc5de8, #7c5cff); color: #fff;
+  cursor: pointer; box-shadow: 0 5px 0 #5a3fd1;
+  animation: rebirthGlow 2s ease infinite;
+}
+.rebirth-btn:active { transform: translateY(4px); box-shadow: none; }
+@keyframes rebirthGlow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(204,93,232,0)); }
+  50% { filter: drop-shadow(0 0 12px rgba(204,93,232,.8)); }
+}
+
+/* ---- Themes (background skins) ---- */
+body[data-theme="ocean"]  { background-image: linear-gradient(160deg, #6ee7ff 0%, #4dabf7 55%, #b3f5e6 100%); }
+body[data-theme="sunset"] { background-image: linear-gradient(160deg, #ffd43b 0%, #ff9a6b 55%, #ff6baa 100%); }
+body[data-theme="forest"] { background-image: linear-gradient(160deg, #b2f2bb 0%, #69db7c 55%, #e9fac8 100%); }
+body[data-theme="candy"]  { background-image: linear-gradient(160deg, #ffc9de 0%, #eebefa 55%, #c5f6fa 100%); }
+body[data-theme="space"]  { background-image: linear-gradient(160deg, #4c4a78 0%, #7c5cff 55%, #2b2150 100%); }
+

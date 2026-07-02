@@ -135,10 +135,9 @@ Game.register({
     }
 
     function win(top) {
-      api.flag('perfect');
       api.win({
         coins: 60 + Math.round(score / 8), xp: 70 + Math.round(score / 8),
-        title: 'You hit 512! 🏅', msg: `Score ${score}. Keep going for more!`,
+        title: 'You hit 512! 🏅', msg: `Final score ${score} — amazing merging!`,
         emoji: '🔢', best: score, perfect: top >= 2048,
         stats: [`🏆 best tile ${top}`, `⭐ ${score} pts`]
       });
