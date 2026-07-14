@@ -5,10 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#8ad7ff" />
   <title>Brainy Bunch — Mini-Game Arcade</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- ▼▼ Google AdSense — replace ca-pub-XXXXXXXXXXXXXXXX with your Publisher ID ▼▼
+       (Get it at https://adsense.google.com after your site is approved.) -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+          crossorigin="anonymous"></script>
+  <!-- ▲▲ AdSense ▲▲ -->
 </head>
 <body>
   <!-- Decorative animated background -->
@@ -91,7 +100,31 @@
           <div class="section-head"><h2>🏅 Badges</h2></div>
           <div class="badge-grid" id="badge-grid"></div>
         </div>
+
+        <!-- ===== LEADERBOARD TAB ===== -->
+        <div class="tab-panel" id="tab-leaders">
+          <div class="section-head">
+            <h2>🏆 Leaderboard</h2>
+            <button class="icon-btn" id="leaders-refresh" title="Refresh">🔄</button>
+          </div>
+          <p class="lb-caption">Top coin collectors across the world. Sign up to appear here!</p>
+          <div class="lb-me-box hidden" id="leaders-me"></div>
+          <div class="leaders-list" id="leaders-list">
+            <div class="lb-loading">Open this tab to load the leaderboard…</div>
+          </div>
+        </div>
       </section>
+
+      <!-- Ad slot (home). Shows nothing until AdSense is set up + approved. -->
+      <div class="ad-slot" aria-hidden="true">
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+             data-ad-slot="0000000000"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+      </div>
 
       <!-- GAME SCREEN -->
       <section class="screen hidden" id="play-screen">
@@ -116,6 +149,7 @@
     <button class="bnav-btn active" data-tab="games"><span class="bnav-ico">🎮</span>Games</button>
     <button class="bnav-btn" data-tab="shop"><span class="bnav-ico">🛍️</span>Shop</button>
     <button class="bnav-btn" data-tab="badges"><span class="bnav-ico">🏅</span>Badges</button>
+    <button class="bnav-btn" data-tab="leaders"><span class="bnav-ico">🏆</span>Ranks</button>
   </nav>
 
   <!-- Particle / confetti overlay -->
@@ -190,5 +224,6 @@
   <script src="js/games/maze.js"></script>
   <script src="js/games/catch.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/cloud.js"></script>
 </body>
 </html>

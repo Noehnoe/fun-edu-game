@@ -52,7 +52,11 @@
       return Object.assign(clone(defaultState), JSON.parse(raw));
     } catch (e) { return clone(defaultState); }
   }
-  function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {} }
+  let saveHook = null;   // cloud.js registers this to push saves to the server
+  function save() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
+    if (saveHook) { try { saveHook(state); } catch (e) {} }
+  }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   /* ---------------- progression ---------------- */
@@ -631,5 +635,42 @@
     renderAll();
   }
 
-  window.Game = { register, init, get state() { return state; } };
+  /* ---------------- cloud sync hooks (used by js/cloud.js) ---------------- */
+  // Register a function called every time progress is saved locally.
+  function setSaveHook(fn) { saveHook = fn; }
+
+  // Replace the whole state with a save loaded from the server, then re-render.
+  // Pass persist=false to avoid immediately re-uploading what we just downloaded.
+  function loadRemoteState(obj, persist) {
+    if (!obj || typeof obj !== 'object') return;
+    state = Object.assign(clone(defaultState), obj);
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
+    if (persist && saveHook) { try { saveHook(state); } catch (e) {} }
+    FX.sound.enabled = state.soundOn;
+    FX.sound.setVolume(state.sfxVol);
+    FX.music.setEnabled(state.soundOn);
+    FX.music.setVolume(state.musicVol);
+    if (el['sound-btn']) {
+      el['sound-btn'].textContent = state.soundOn ? '🔊' : '🔇';
+      el['sound-btn'].classList.toggle('muted', !state.soundOn);
+    }
+    renderAll();
+  }
+
+  // Coins + level for the leaderboard.
+  function getSummary() { return { coins: state.coins, level: levelInfo(state.xp).level }; }
+
+  // Wipe local progress back to a fresh account (used when signing out / new account).
+  function freshState() {
+    const audio = { soundOn: state.soundOn, musicVol: state.musicVol, sfxVol: state.sfxVol };
+    state = Object.assign(clone(defaultState), audio);
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
+    renderAll();
+  }
+
+  window.Game = {
+    register, init,
+    setSaveHook, loadRemoteState, getSummary, freshState,
+    get state() { return state; }
+  };
 })();
