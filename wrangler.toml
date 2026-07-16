@@ -1,0 +1,18 @@
+# Cloudflare Worker config for Brainy Bunch
+# Deploys the game (static files) + the /api backend as one Worker.
+
+name = "fun-edu-game"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# Serve the game's static files (index.html, css/, js/, icons/, audio…)
+[assets]
+directory = "."
+binding = "ASSETS"
+
+# Database. Create it in the Cloudflare dashboard (D1) named "brainy-bunch-db",
+# then paste its Database ID below (replace PASTE_DATABASE_ID_HERE).
+[[d1_databases]]
+binding = "DB"
+database_name = "brainy-bunch-db"
+database_id = "211400f5-b192-4b1f-8c8e-b8b450151f0d"

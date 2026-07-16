@@ -1,0 +1,14 @@
+# Files that must NOT be served as public static assets.
+worker.js
+wrangler.toml
+schema.sql
+.assetsignore
+.gitignore
+*.md
+functions
+.git
+.wrangler
+node_modules
+Idea.md
+mobile-design-prompt.md
+Brainy Bunch mobile redesign
