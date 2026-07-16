@@ -5,6 +5,13 @@ name = "fun-edu-game"
 main = "worker.js"
 compatibility_date = "2024-09-23"
 
+# Serve the site on both the bare domain and www — Google's AdSense/search
+# crawlers check www, and it must not 404.
+routes = [
+  { pattern = "noehnoe.com", custom_domain = true },
+  { pattern = "www.noehnoe.com", custom_domain = true }
+]
+
 # Serve the game's static files (index.html, css/, js/, icons/, audio…)
 [assets]
 directory = "."
