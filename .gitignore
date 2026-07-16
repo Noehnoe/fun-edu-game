@@ -6,3 +6,8 @@ Thumbs.db
 # Cloudflare local dev state
 .wrangler/
 node_modules/
+
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
