@@ -40,7 +40,7 @@ Game.register({
     function light(i, dur = 360) {
       pads[i].classList.add('lit');
       api.sound.tone(PADS[i].freq, dur / 1000, 'sine', 0.2);
-      setTimeout(() => pads[i].classList.remove('lit'), dur);
+      api.timeout(() => pads[i].classList.remove('lit'), dur);
     }
 
     function nextRound() {
@@ -57,11 +57,11 @@ Game.register({
       pads.forEach(p => p.disabled = true);
       let i = 0;
       const speed = Math.max(280, 620 - round * 25);
-      const t = setInterval(() => {
+      const t = api.interval(() => {
         light(seq[i], speed * 0.6);
         i++;
         if (i >= seq.length) {
-          clearInterval(t);
+          api.clearTimer(t);
           api.timeout(() => {
             playing = false;
             status.textContent = 'Your turn! 🎯';
@@ -69,7 +69,6 @@ Game.register({
           }, speed);
         }
       }, speed);
-      api.onCleanup(() => clearInterval(t));
     }
 
     function press(i) {

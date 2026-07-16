@@ -45,17 +45,17 @@ Game.register({
         crit.textContent = isBomb ? '💣' : isGold ? '⭐' : '🐹';
         hole.classList.add('up'); hole.dataset.type = type;
         const life = isBomb ? 1100 : api.randInt(700, 1300);
-        const to = setTimeout(() => { hole.classList.remove('up'); active.delete(i); }, life);
+        const to = api.timeout(() => { hole.classList.remove('up'); active.delete(i); }, life);
         active.set(i, { type, to });
       }
       const gap = Math.max(380, 820 - score * 6);
-      spawnT = setTimeout(spawn, gap);
+      spawnT = api.timeout(spawn, gap);
     }
 
     function bonk(i, hole) {
       if (!active.has(i) || !hole.classList.contains('up')) return;
       const a = active.get(i);
-      clearTimeout(a.to); active.delete(i);
+      api.clearTimer(a.to); active.delete(i);
       hole.classList.remove('up');
       const r = hole.getBoundingClientRect();
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -77,18 +77,18 @@ Game.register({
       api.updateHud('score', score, true);
     }
 
-    tickT = setInterval(() => {
+    tickT = api.interval(() => {
       timeLeft--;
       api.updateHud('time', timeLeft + 's', timeLeft <= 5);
       if (timeLeft <= 5 && timeLeft > 0) api.sound.play('tick');
       if (timeLeft <= 0) end();
     }, 1000);
 
-    api.onCleanup(() => { clearTimeout(spawnT); clearInterval(tickT); active.forEach(a => clearTimeout(a.to)); });
+    api.onCleanup(() => { api.clearTimer(spawnT); api.clearTimer(tickT); active.forEach(a => api.clearTimer(a.to)); });
 
     function end() {
-      clearTimeout(spawnT); clearInterval(tickT);
-      active.forEach(a => clearTimeout(a.to)); active.clear();
+      api.clearTimer(spawnT); api.clearTimer(tickT);
+      active.forEach(a => api.clearTimer(a.to)); active.clear();
       api.win({
         coins: 15 + score * 3, xp: 18 + score * 3,
         title: 'Time! 🔨', msg: `You bonked your way to ${score} points!`,

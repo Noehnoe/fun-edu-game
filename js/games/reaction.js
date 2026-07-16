@@ -37,19 +37,18 @@ Game.register({
       state = 'waiting';
       setPad('waiting', 'Wait for green…', `Round ${round + 1} of ${ROUNDS}`);
       const delay = api.randInt(1100, 3000);
-      waitT = setTimeout(() => {
+      waitT = api.timeout(() => {
         state = 'ready';
         greenAt = performance.now();
         setPad('ready', 'TAP!', 'Now!');
         api.sound.play('good');
       }, delay);
-      api.onCleanup(() => clearTimeout(waitT));
     }
 
     function onTap() {
       if (state === 'idle') { round = 0; times = []; arm(); return; }
       if (state === 'waiting') {
-        clearTimeout(waitT);
+        api.clearTimer(waitT);
         api.sound.play('bad');
         setPad('early', 'Too early! 😅', 'Tap to try this round again');
         state = 'idle-round';

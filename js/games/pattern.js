@@ -49,12 +49,11 @@ Game.register({
       pattern.forEach(i => cells[i].classList.add('lit'));
       api.sound.play('whoosh');
       const showTime = Math.max(700, 1600 - round * 80);
-      const to = setTimeout(() => {
+      api.timeout(() => {
         pattern.forEach(i => cells[i].classList.remove('lit'));
         accepting = true;
         status.textContent = `Tap the ${count} tiles you saw`;
       }, showTime);
-      api.onCleanup(() => clearTimeout(to));
     }
 
     function choose(i, cell) {

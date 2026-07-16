@@ -39,6 +39,8 @@ async function handleApi(request, env, url) {
     if (request.method === 'GET'  && route === 'me')          return me(request, db);
     if (request.method === 'POST' && route === 'sync')        return sync(request, db);
     if (request.method === 'GET'  && route === 'leaderboard') return leaderboard(request, db);
+    if (request.method === 'POST' && route === 'record')      return submitRecord(request, db);
+    if (request.method === 'GET'  && route === 'records')     return topRecords(request, db);
     return bad('Not found', 404);
   } catch (err) {
     return bad('Server error: ' + (err && err.message ? err.message : 'unknown'), 500);
@@ -60,7 +62,18 @@ async function ensureSchema(db) {
       token TEXT PRIMARY KEY, user_id INTEGER NOT NULL,
       created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_coins ON users(coins DESC)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`)
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`),
+    // one row per (game, user): each new run overwrites the player's own best for that game
+    db.prepare(`CREATE TABLE IF NOT EXISTS game_records (
+      game_id     TEXT NOT NULL,
+      user_id     INTEGER NOT NULL,
+      display_name TEXT NOT NULL,
+      coins       INTEGER NOT NULL DEFAULT 0,
+      score       INTEGER,
+      time_ms     INTEGER,
+      updated_at  INTEGER NOT NULL,
+      PRIMARY KEY (game_id, user_id))`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_records_game_coins ON game_records(game_id, coins DESC)`)
   ]);
   schemaReady = true;
 }
@@ -236,6 +249,76 @@ async function leaderboard(request, db) {
   if (u) {
     const rank = await db.prepare('SELECT COUNT(*) + 1 AS r FROM users WHERE coins > ?').bind(u.coins).first();
     meRow = { name: u.display_name, coins: u.coins, level: u.level, rank: rank.r };
+  }
+  return json({ top: results || [], me: meRow });
+}
+
+const GAME_ID_RE = /^[a-z0-9_-]{1,40}$/i;
+function sanitiseInt(n, max) {
+  if (n == null) return null;
+  n = Math.floor(Number(n));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.min(n, max);
+}
+
+/* ---------- POST /api/record — submit a "Mini Records" run for one game ---------- */
+async function submitRecord(request, db) {
+  const u = await userFromToken(db, bearer(request));
+  if (!u) return bad('Not signed in.', 401);
+
+  const body = await request.json().catch(() => ({}));
+  const gameId = String(body.gameId || '');
+  if (!GAME_ID_RE.test(gameId)) return bad('Invalid game id.');
+
+  const coins = sanitiseCoins(body.coins);
+  const score = sanitiseInt(body.score, 1_000_000_000);
+  const timeMs = sanitiseInt(body.timeMs, 24 * 3600_000);   // cap at 24h — guards against garbage input
+  if (!coins && score == null && timeMs == null) return bad('Nothing to record.');
+
+  // Keep only the player's personal best per game: higher coins wins, ties broken by higher score.
+  const existing = await db.prepare(
+    'SELECT coins, score FROM game_records WHERE game_id = ? AND user_id = ?'
+  ).bind(gameId, u.id).first();
+
+  const better = !existing || coins > existing.coins ||
+    (coins === existing.coins && (score || 0) > (existing.score || 0));
+  if (!better) return json({ ok: true, improved: false });
+
+  await db.prepare(
+    `INSERT INTO game_records (game_id, user_id, display_name, coins, score, time_ms, updated_at)
+     VALUES (?,?,?,?,?,?,?)
+     ON CONFLICT(game_id, user_id) DO UPDATE SET
+       display_name = excluded.display_name, coins = excluded.coins,
+       score = excluded.score, time_ms = excluded.time_ms, updated_at = excluded.updated_at`
+  ).bind(gameId, u.id, u.display_name, coins, score, timeMs, Date.now()).run();
+
+  return json({ ok: true, improved: true });
+}
+
+/* ---------- GET /api/records?game=ID — "Mini Records" top list for one game ---------- */
+async function topRecords(request, db) {
+  const url = new URL(request.url);
+  const gameId = String(url.searchParams.get('game') || '');
+  if (!GAME_ID_RE.test(gameId)) return bad('Invalid game id.');
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10)));
+
+  const { results } = await db.prepare(
+    `SELECT display_name AS name, coins, score, time_ms AS timeMs FROM game_records
+     WHERE game_id = ? ORDER BY coins DESC, score DESC, updated_at ASC LIMIT ?`
+  ).bind(gameId, limit).all();
+
+  let meRow = null;
+  const u = await userFromToken(db, bearer(request));
+  if (u) {
+    const mine = await db.prepare(
+      'SELECT coins, score, time_ms AS timeMs FROM game_records WHERE game_id = ? AND user_id = ?'
+    ).bind(gameId, u.id).first();
+    if (mine) {
+      const rank = await db.prepare(
+        'SELECT COUNT(*) + 1 AS r FROM game_records WHERE game_id = ? AND coins > ?'
+      ).bind(gameId, mine.coins).first();
+      meRow = { name: u.display_name, coins: mine.coins, score: mine.score, timeMs: mine.timeMs, rank: rank.r };
+    }
   }
   return json({ top: results || [], me: meRow });
 }

@@ -43,13 +43,40 @@
     theme: 'default',   // equipped theme
     rebirths: 0         // prestige count (permanent reward multiplier)
   };
+  const MAX_COINS = 100_000_000_000;   // matches the server-side cap; keeps one save legit everywhere
+  const MAX_XP    = 100_000_000_000;
+
+  // Clamp anything that could have been hand-edited in devtools/localStorage
+  // (bad numbers, NaN, Infinity, negatives, scientific-notation overflows, wrong types)
+  // back into a sane, legitimately-reachable range. Runs on every load, local or cloud.
+  function sanitiseNumber(n, max) {
+    n = Number(n);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return Math.min(Math.floor(n), max);
+  }
+  function sanitiseState(s) {
+    s.coins  = sanitiseNumber(s.coins, MAX_COINS);
+    s.earned = sanitiseNumber(s.earned, MAX_COINS);
+    s.xp     = sanitiseNumber(s.xp, MAX_XP);
+    s.plays  = sanitiseNumber(s.plays, 10_000_000);
+    s.rebirths = sanitiseNumber(s.rebirths, 100_000);
+    if (!Array.isArray(s.played)) s.played = [];
+    if (!Array.isArray(s.badges)) s.badges = [];
+    if (!Array.isArray(s.themes) || !s.themes.length) s.themes = ['default'];
+    if (!s.best || typeof s.best !== 'object') s.best = {};
+    if (!s.flags || typeof s.flags !== 'object') s.flags = {};
+    // earned is lifetime-total and must never be less than current spendable coins
+    if (s.earned < s.coins) s.earned = s.coins;
+    return s;
+  }
+
   let state = load();
 
   function load() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return clone(defaultState);
-      return Object.assign(clone(defaultState), JSON.parse(raw));
+      return sanitiseState(Object.assign(clone(defaultState), JSON.parse(raw)));
     } catch (e) { return clone(defaultState); }
   }
   let saveHook = null;   // cloud.js registers this to push saves to the server
@@ -128,7 +155,9 @@
      'settings-btn','settings-backdrop','settings-close','reset-btn-2',
      'music-slider','music-val','sfx-slider','sfx-val',
      'shop-grid','rebirth-btn','rebirth-stat','hero-sub',
-     'bottom-nav','hero','hero-toggle','hero-body'].forEach(id => {
+     'bottom-nav','hero','hero-toggle','hero-body',
+     'pause-btn','pause-backdrop','pause-resume','pause-quit',
+     'mini-records','mr-game-name','mr-me-box','mr-list'].forEach(id => {
       el[id] = document.getElementById(id);
     });
   }
@@ -284,6 +313,14 @@
     toastTimer = setTimeout(() => el['toast'].classList.remove('show'), 2400);
   }
 
+  /* ---------------- portal hooks (CrazyGames etc.; no-op on the main site) ---------------- */
+  function arcadeHook(name, arg) {
+    try {
+      const h = window.__ARCADE_HOOKS__;
+      if (h && typeof h[name] === 'function') h[name](arg);
+    } catch (e) {}
+  }
+
   /* ---------------- navigation + session ---------------- */
   let session = null;   // { def, cleanups:[], finished:false }
 
@@ -302,6 +339,7 @@
     closeModal();
     renderAll();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    arcadeHook('returnToMenu');   // portal: gameplay stopped + good ad break
   }
 
   /* bottom-nav tab switching (mobile) */
@@ -335,16 +373,98 @@
 
   function mountGame(def) {
     runCleanups();
-    session = { def, cleanups: [], finished: false };
+    session = {
+      def, cleanups: [], finished: false,
+      paused: false, _timers: [],
+      startedAt: Date.now(), pausedMs: 0, pauseStartedAt: 0
+    };
     el['stage'].innerHTML = '';
     el['stage'].classList.remove('shake');
+    hidePauseOverlay();
     const api = makeApi(def, session);
     try {
       def.mount(el['stage'], api);
+      arcadeHook('gameplayStart', def.id);   // portal: active gameplay began
     } catch (e) {
       console.error('Game crashed:', e);
       el['stage'].innerHTML = `<div class="game-msg">Oops! This game hit a snag.</div>`;
     }
+  }
+
+  /* ---------------- pausable timers ----------------
+     A drop-in replacement for setTimeout/setInterval that a paused session
+     freezes and resumes exactly where it left off (no time "jump"), and that
+     the engine still auto-clears when the player leaves the game. */
+  function makePausableTimer(sess, fn, ms, repeating) {
+    let native = null;             // the real setTimeout-created native id
+    let remaining = ms;            // ms left until the next fire (updated across pauses)
+    let armedAt = 0;               // Date.now() when `native` was last (re)armed
+    let dead = false;
+
+    function clear() {
+      if (native != null) { clearTimeout(native); native = null; }
+    }
+    function arm() {
+      armedAt = Date.now();
+      native = setTimeout(onFire, remaining);
+    }
+    function onFire() {
+      native = null;
+      if (dead) return;
+      if (repeating) { remaining = ms; arm(); }  // schedule the next tick before running fn
+      else { teardown(); }
+      fn();
+    }
+    function teardown() {
+      if (dead) return;
+      dead = true;
+      clear();
+      const i = sess.cleanups.indexOf(teardown);
+      if (i >= 0) sess.cleanups.splice(i, 1);
+      const j = sess._timers.indexOf(handle);
+      if (j >= 0) sess._timers.splice(j, 1);
+    }
+    const handle = {
+      _teardown: teardown,
+      onPause() { if (!dead && native != null) { remaining = Math.max(0, remaining - (Date.now() - armedAt)); clear(); } },
+      onResume() { if (!dead) arm(); }
+    };
+
+    sess._timers = sess._timers || [];
+    sess._timers.push(handle);
+    sess.cleanups.push(teardown);
+    if (!sess.paused) arm();   // if created while already paused, onResume() will arm it later
+    return handle;
+  }
+
+  /* elapsed real gameplay time so far, excluding any time spent paused */
+  function elapsedMs(sess) {
+    const pausedNow = sess.paused ? (Date.now() - sess.pauseStartedAt) : 0;
+    return Date.now() - sess.startedAt - sess.pausedMs - pausedNow;
+  }
+
+  /* ---------------- pause ---------------- */
+  function togglePause() {
+    if (!session || session.finished) return;
+    session.paused ? resumeGame() : pauseGame();
+  }
+  function pauseGame() {
+    if (!session || session.paused || session.finished) return;
+    session.paused = true;
+    session.pauseStartedAt = Date.now();
+    (session._timers || []).forEach(t => t.onPause());
+    (session.pauseListeners || []).forEach(fn => { try { fn(true); } catch (e) {} });
+    arcadeHook('gameplayStop');
+    showPauseOverlay();
+  }
+  function resumeGame() {
+    if (!session || !session.paused) return;
+    session.paused = false;
+    session.pausedMs += Date.now() - session.pauseStartedAt;
+    hidePauseOverlay();
+    arcadeHook('gameplayStart', session.def.id);
+    (session._timers || []).forEach(t => t.onResume());
+    (session.pauseListeners || []).forEach(fn => { try { fn(false); } catch (e) {} });
   }
 
   /* ---------------- per-game API ---------------- */
@@ -385,9 +505,9 @@
     function applyRewards(coins, xp) {
       const before = levelInfo(state.xp).level;
       const lockedBefore = games.filter(d => !isUnlocked(d));
-      state.coins += coins;
-      state.earned += coins;
-      state.xp += xp;
+      state.coins  = sanitiseNumber(state.coins + coins, MAX_COINS);
+      state.earned = sanitiseNumber(state.earned + coins, MAX_COINS);
+      state.xp     = sanitiseNumber(state.xp + xp, MAX_XP);
       // announce games that just crossed their unlock threshold
       lockedBefore.filter(d => isUnlocked(d)).forEach((d, i) => {
         setTimeout(() => {
@@ -424,8 +544,16 @@
       coins = Math.max(0, Math.round(coins));
       xp = Math.max(0, Math.round(xp));
 
+      // Anti-macro: a run that reports zero progress (0 apples, round 0, 0 correct…)
+      // earns nothing at all — no coins, no XP, no records. Idle/scripted runs get 0.
+      // (lowerBest games like Reaction report times, where any reported best is real progress.)
+      if (opts.best != null && !def.lowerBest && opts.best <= 0) {
+        coins = 0; xp = 0;
+        opts.stats = (opts.stats || []).concat('🎯 Score to earn rewards!');
+      }
+
       const mult = 1 + (state.rebirths || 0) * 0.25;
-      if (mult > 1) {
+      if (mult > 1 && (coins || xp)) {
         coins = Math.round(coins * mult);
         xp = Math.round(xp * mult);
         opts.stats = (opts.stats || []).concat(`🌀 x${mult} boost`);
@@ -453,6 +581,14 @@
 
       showModal(kind, def, { coins, xp }, opts);
       renderHud();
+      arcadeHook('gameplayStop');   // portal: gameplay paused on the result screen
+
+      // Mini Records only count real, rewarded runs — coins earned is the anti-macro
+      // gate (see recordRunHook below): a bot that never scores never gets on the board.
+      if (coins > 0 && recordRunHook) {
+        try { recordRunHook(def.id, { coins, score: opts.best != null ? opts.best : null, timeMs: elapsedMs(sess) }); }
+        catch (e) {}
+      }
     }
 
     return {
@@ -463,9 +599,17 @@
       sound: FX.sound,
       fx: FX,
       onCleanup(fn) { sess.cleanups.push(fn); },
-      // session-safe timers: auto-cleared when the player leaves the game
-      timeout(fn, ms) { const t = setTimeout(fn, ms); sess.cleanups.push(() => clearTimeout(t)); return t; },
-      interval(fn, ms) { const t = setInterval(fn, ms); sess.cleanups.push(() => clearInterval(t)); return t; },
+      // session-safe timers: auto-cleared when the player leaves the game,
+      // and pause-aware — see makePausableTimer() for how pause/resume freezes these.
+      timeout(fn, ms) { return makePausableTimer(sess, fn, ms, false); },
+      interval(fn, ms) { return makePausableTimer(sess, fn, ms, true); },
+      // cancel a timer/interval returned by api.timeout / api.interval before it fires
+      clearTimer(handle) { if (handle && handle._teardown) handle._teardown(); },
+      // for games driving their own requestAnimationFrame loop (Snake, Star Catcher):
+      // check isPaused() each frame to skip simulation, and use onPauseChange to reset
+      // your own delta-time clock on resume so speed doesn't jump.
+      isPaused() { return !!sess.paused; },
+      onPauseChange(fn) { sess.pauseListeners = sess.pauseListeners || []; sess.pauseListeners.push(fn); },
       flag(name) { state.flags[name] = true; save(); checkBadges(); },
       best: state.best[def.id],
       win(opts) { finish('win', opts || {}); },
@@ -495,6 +639,32 @@
     el['modal-backdrop'].classList.remove('hidden');
   }
   function closeModal() { el['modal-backdrop'].classList.add('hidden'); }
+
+  /* ---------------- pause overlay + Mini Records ---------------- */
+  let recordsHook = null;   // cloud.js registers this to fetch/render per-game Mini Records
+  let recordRunHook = null; // cloud.js registers this to submit a finished, coin-earning run
+  function setRecordsHook(fn) { recordsHook = fn; }
+  function setRecordRunHook(fn) { recordRunHook = fn; }
+
+  function showPauseOverlay() {
+    if (!session) return;
+    // Mini Records needs the cloud backend (cloud.js); on builds without it
+    // (e.g. the CrazyGames portal) pause still works, the panel just stays hidden.
+    if (recordsHook) {
+      el['mini-records'].classList.remove('hidden');
+      el['mr-game-name'].textContent = session.def.name;
+      el['mr-me-box'].classList.add('hidden');
+      el['mr-me-box'].innerHTML = '';
+      el['mr-list'].innerHTML = `<div class="mr-loading">Loading records…</div>`;
+      try { recordsHook(session.def.id); } catch (e) {}
+    } else {
+      el['mini-records'].classList.add('hidden');
+    }
+    el['pause-backdrop'].classList.remove('hidden');
+  }
+  function hidePauseOverlay() {
+    el['pause-backdrop'].classList.add('hidden');
+  }
 
   /* ---------------- helpers ---------------- */
   function randInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
@@ -596,6 +766,12 @@
 
     el['back-btn'].addEventListener('click', () => { FX.sound.play('whoosh'); goHome(); });
     el['logo-btn'].addEventListener('click', () => { FX.sound.play('click'); goHome(); });
+    el['pause-btn'].addEventListener('click', () => { FX.sound.play('click'); togglePause(); });
+    el['pause-resume'].addEventListener('click', () => { FX.sound.play('whoosh'); resumeGame(); });
+    el['pause-quit'].addEventListener('click', () => { FX.sound.play('click'); goHome(); });
+    el['pause-backdrop'].addEventListener('click', (e) => {
+      if (e.target === el['pause-backdrop']) resumeGame();
+    });
     el['sound-btn'].addEventListener('click', toggleSound);
     el['reset-btn'].addEventListener('click', resetProgress);
     if (el['reset-btn-2']) el['reset-btn-2'].addEventListener('click', resetProgress);
@@ -643,7 +819,7 @@
   // Pass persist=false to avoid immediately re-uploading what we just downloaded.
   function loadRemoteState(obj, persist) {
     if (!obj || typeof obj !== 'object') return;
-    state = Object.assign(clone(defaultState), obj);
+    state = sanitiseState(Object.assign(clone(defaultState), obj));
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
     if (persist && saveHook) { try { saveHook(state); } catch (e) {} }
     FX.sound.enabled = state.soundOn;
@@ -671,6 +847,7 @@
   window.Game = {
     register, init,
     setSaveHook, loadRemoteState, getSummary, freshState,
+    setRecordsHook, setRecordRunHook,
     get state() { return state; }
   };
 })();

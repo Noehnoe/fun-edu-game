@@ -298,6 +298,8 @@
   /* ===================================================================
      Leaderboard
      =================================================================== */
+  let lastMe = null;   // remembers the signed-in player's rank for the Share button
+
   async function loadLeaderboard() {
     const panel = document.getElementById('leaders-list');
     if (!panel) return;
@@ -311,6 +313,7 @@
   }
   function renderLeaderboard(data) {
     const panel = document.getElementById('leaders-list');
+    lastMe = data.me || null;
     const top = data.top || [];
     if (!top.length) {
       panel.innerHTML = `<div class="lb-loading">No players yet — be the first! 🏆</div>`;
@@ -347,6 +350,96 @@
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  /* ===================================================================
+     Mini Records — a per-game leaderboard shown on the pause screen.
+     Ranked by coins earned in that game; score + time shown when available.
+     =================================================================== */
+  function formatDuration(ms) {
+    if (ms == null) return null;
+    const s = ms / 1000;
+    if (s < 60) return s.toFixed(1) + 's';
+    const m = Math.floor(s / 60), rem = Math.round(s % 60);
+    return `${m}m ${rem}s`;
+  }
+
+  async function loadMiniRecords(gameId) {
+    const list = document.getElementById('mr-list');
+    const meBox = document.getElementById('mr-me-box');
+    if (!list) return;
+    if (mode !== 'account') {
+      list.innerHTML = `<div class="mr-loading">Sign up to appear on Mini Records!<br><small>Guests can still see the top players below.</small></div>`;
+    }
+    try {
+      const data = await api(`/records?game=${encodeURIComponent(gameId)}&limit=10`, { auth: mode === 'account' });
+      renderMiniRecords(data);
+    } catch (e) {
+      list.innerHTML = `<div class="mr-loading">Couldn't load records.<br><small>${escapeHtml(e.message)}</small></div>`;
+    }
+  }
+
+  function renderMiniRecords(data) {
+    const list = document.getElementById('mr-list');
+    const meBox = document.getElementById('mr-me-box');
+    const top = data.top || [];
+    const row = (r, rankLabel, isMe) => {
+      const parts = [`🪙 ${r.coins.toLocaleString()}`];
+      if (r.score != null) parts.push(`⭐ ${r.score.toLocaleString()}`);
+      const dur = formatDuration(r.timeMs);
+      if (dur) parts.push(`⏱️ ${dur}`);
+      return `
+        <div class="mr-row${isMe ? ' mr-me' : ''}">
+          <span class="mr-rank">${rankLabel}</span>
+          <span class="mr-name">${escapeHtml(r.name)}${isMe ? ' (you)' : ''}</span>
+          <span class="mr-stats">${parts.join(' · ')}</span>
+        </div>`;
+    };
+    if (!top.length) {
+      list.innerHTML = `<div class="mr-loading">No records yet — win this game to set the first one! 🏆</div>`;
+    } else {
+      const medal = i => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1));
+      const mine = data.me && data.me.name;
+      list.innerHTML = top.map((r, i) => row(r, medal(i), r.name === mine)).join('');
+    }
+    if (data.me) {
+      meBox.classList.remove('hidden');
+      meBox.innerHTML = row({ ...data.me }, '#' + data.me.rank, true);
+    } else {
+      meBox.classList.add('hidden');
+      meBox.innerHTML = '';
+    }
+  }
+
+  /* Submit a finished, coin-earning run — the engine only calls this when coins > 0,
+     which is the anti-macro gate: a run that scores nothing never reaches the board. */
+  async function submitMiniRecord(gameId, metrics) {
+    if (mode !== 'account' || !token) return;   // guests aren't ranked, same rule as the main leaderboard
+    try {
+      await api('/record', { method: 'POST', auth: true, body: { gameId, ...metrics } });
+    } catch (e) { /* best-effort; a failed record submit shouldn't interrupt play */ }
+  }
+
+  /* Share the player's rank via the native share sheet, or copy a link as a fallback */
+  async function shareRank() {
+    const url = 'https://noehnoe.com';
+    let text;
+    if (mode === 'account' && lastMe) {
+      text = `I'm ranked #${lastMe.rank} with ${lastMe.coins.toLocaleString()} 🪙 on Brainy Bunch! Can you beat me?`;
+    } else {
+      text = `I'm playing Brainy Bunch — 23 free brain games. Come climb the leaderboard with me!`;
+    }
+    const shareData = { title: 'Brainy Bunch', text, url };
+    try {
+      if (navigator.share) { await navigator.share(shareData); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      toastMsg('📋 Link copied — paste it anywhere!');
+    } catch (e) {
+      toastMsg('Share link: ' + url);
+    }
+  }
+
   /* Wire the Leaderboard bottom-nav / tab so it loads on open */
   function wireLeaderboardTab() {
     document.querySelectorAll('[data-tab="leaders"]').forEach(btn => {
@@ -354,6 +447,8 @@
     });
     const refresh = document.getElementById('leaders-refresh');
     if (refresh) refresh.addEventListener('click', loadLeaderboard);
+    const share = document.getElementById('leaders-share');
+    if (share) share.addEventListener('click', () => { if (window.FX) FX.sound.play('click'); shareRank(); });
   }
 
   /* ===================================================================
@@ -363,6 +458,8 @@
     if (!window.Game) { setTimeout(boot, 50); return; }
 
     Game.setSaveHook(scheduleSync);
+    Game.setRecordsHook(loadMiniRecords);
+    Game.setRecordRunHook(submitMiniRecord);
     injectTopbar();
     wireLeaderboardTab();
     // Desktop stacks all panels (no nav click), so load once now; also refreshes mobile.

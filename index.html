@@ -4,20 +4,42 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#8ad7ff" />
-  <title>Brainy Bunch — Mini-Game Arcade</title>
+  <title>Brainy Bunch — 23 Free Brain-Training Mini-Games</title>
+
+  <!-- ===== SEO ===== -->
+  <meta name="description" content="Play 23 free brain-training mini-games! Earn coins, level up, unlock games, collect badges and climb the global leaderboard. Fun educational games for kids and adults — no download, plays in your browser." />
+  <meta name="keywords" content="brain games, free online games, mini games, brain training, educational games for kids, puzzle games, memory games, math games, logic games, browser games" />
+  <meta name="author" content="Noehnoe" />
+  <link rel="canonical" href="https://noehnoe.com/" />
+
+  <!-- ===== Social share preview (Facebook, Discord, WhatsApp, iMessage…) ===== -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Brainy Bunch" />
+  <meta property="og:url" content="https://noehnoe.com/" />
+  <meta property="og:title" content="Brainy Bunch — 23 Free Brain-Training Mini-Games" />
+  <meta property="og:description" content="Earn coins, level up, and climb the global leaderboard across 23 free brain games. Can you reach the top?" />
+  <meta property="og:image" content="https://noehnoe.com/icons/icon-512.png" />
+
+  <!-- ===== Twitter / X card ===== -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Brainy Bunch — 23 Free Brain-Training Mini-Games" />
+  <meta name="twitter:description" content="Earn coins, level up, and climb the global leaderboard across 23 free brain games!" />
+  <meta name="twitter:image" content="https://noehnoe.com/icons/icon-512.png" />
+
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/webp" href="icons/icon-192.webp" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 
-  <!-- ▼▼ Google AdSense — replace ca-pub-XXXXXXXXXXXXXXXX with your Publisher ID ▼▼
-       (Get it at https://adsense.google.com after your site is approved.) -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+  <!--PORTAL-STRIP-->
+  <!-- ▼▼ Google AdSense ▼▼ -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2799549456506020"
           crossorigin="anonymous"></script>
   <!-- ▲▲ AdSense ▲▲ -->
+  <!--/PORTAL-STRIP-->
 </head>
 <body>
   <!-- Decorative animated background -->
@@ -101,6 +123,7 @@
           <div class="badge-grid" id="badge-grid"></div>
         </div>
 
+        <!--PORTAL-STRIP-->
         <!-- ===== LEADERBOARD TAB ===== -->
         <div class="tab-panel" id="tab-leaders">
           <div class="section-head">
@@ -108,23 +131,27 @@
             <button class="icon-btn" id="leaders-refresh" title="Refresh">🔄</button>
           </div>
           <p class="lb-caption">Top coin collectors across the world. Sign up to appear here!</p>
+          <button class="btn btn-primary lb-share-btn" id="leaders-share">📢 Share my rank</button>
           <div class="lb-me-box hidden" id="leaders-me"></div>
           <div class="leaders-list" id="leaders-list">
             <div class="lb-loading">Open this tab to load the leaderboard…</div>
           </div>
         </div>
+        <!--/PORTAL-STRIP-->
       </section>
 
+      <!--PORTAL-STRIP-->
       <!-- Ad slot (home). Shows nothing until AdSense is set up + approved. -->
       <div class="ad-slot" aria-hidden="true">
         <ins class="adsbygoogle"
              style="display:block"
-             data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+             data-ad-client="ca-pub-2799549456506020"
              data-ad-slot="0000000000"
              data-ad-format="auto"
              data-full-width-responsive="true"></ins>
         <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
       </div>
+      <!--/PORTAL-STRIP-->
 
       <!-- GAME SCREEN -->
       <section class="screen hidden" id="play-screen">
@@ -138,10 +165,35 @@
             </div>
           </div>
           <div class="play-hud" id="play-hud"></div>
+          <button class="icon-btn pause-btn" id="pause-btn" title="Pause">⏸️</button>
         </div>
         <div class="stage" id="stage"></div>
       </section>
     </main>
+  </div>
+
+  <!-- Pause overlay: freezes the game, shows Mini Records for the current game -->
+  <div class="modal-backdrop hidden" id="pause-backdrop">
+    <div class="modal pause-modal">
+      <div class="modal-emoji">⏸️</div>
+      <h2>Paused</h2>
+      <p>Take a breather — your progress is frozen.</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="pause-resume">▶️ Resume</button>
+        <button class="btn btn-ghost" id="pause-quit">🚪 Quit to menu</button>
+      </div>
+
+      <div class="mini-records" id="mini-records">
+        <div class="mr-head">
+          <h3>🏆 Mini Records</h3>
+          <span class="mr-sub" id="mr-game-name"></span>
+        </div>
+        <div class="mr-me-box hidden" id="mr-me-box"></div>
+        <div class="mr-list" id="mr-list">
+          <div class="mr-loading">Loading records…</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Bottom nav (mobile only) -->
@@ -149,7 +201,7 @@
     <button class="bnav-btn active" data-tab="games"><span class="bnav-ico">🎮</span>Games</button>
     <button class="bnav-btn" data-tab="shop"><span class="bnav-ico">🛍️</span>Shop</button>
     <button class="bnav-btn" data-tab="badges"><span class="bnav-ico">🏅</span>Badges</button>
-    <button class="bnav-btn" data-tab="leaders"><span class="bnav-ico">🏆</span>Ranks</button>
+    <!--PORTAL-STRIP--><button class="bnav-btn" data-tab="leaders"><span class="bnav-ico">🏆</span>Ranks</button><!--/PORTAL-STRIP-->
   </nav>
 
   <!-- Particle / confetti overlay -->
@@ -224,6 +276,7 @@
   <script src="js/games/maze.js"></script>
   <script src="js/games/catch.js"></script>
   <script src="js/main.js"></script>
-  <script src="js/cloud.js"></script>
+  <!--PORTAL-STRIP--><script src="js/cloud.js"></script><!--/PORTAL-STRIP-->
+  <!--PORTAL-INSERT-SCRIPTS-->
 </body>
 </html>

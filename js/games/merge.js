@@ -1,19 +1,31 @@
-/* Number Merge — 2048-style sliding tiles */
+/* Number Merge — 2048-style sliding tiles, unlocked to merge forever */
 Game.register({
   id: 'merge',
   name: 'Number Merge',
   emoji: '🔢',
-  tagline: 'Combine tiles to 512',
+  tagline: 'Combine tiles to infinity',
   category: 'logic',
   reward: { coins: 50, xp: 60 },
   mount(stage, api) {
-    const N = 4, TARGET = 512;
-    let grid, score, best, over, reached;
-    const COLORS = {
-      2:'#fff4d6',4:'#ffe8b3',8:'#ffd08a',16:'#ffb074',32:'#ff8f6b',
-      64:'#ff6b6b',128:'#ffd43b',256:'#a9e34b',512:'#51cf66',
-      1024:'#4dabf7',2048:'#cc5de8'
-    };
+    const N = 4;
+    let grid, score, over, milestone;
+    // Cycles every 11 tiers (2 -> 2048) so huge tiles still get a distinct color band.
+    const COLOR_RAMP = [
+      '#fff4d6','#ffe8b3','#ffd08a','#ffb074','#ff8f6b',
+      '#ff6b6b','#ffd43b','#a9e34b','#51cf66','#4dabf7','#cc5de8'
+    ];
+    function tileColor(v) {
+      const tier = Math.round(Math.log2(v));           // 2->1, 4->2, 8->3, ...
+      return COLOR_RAMP[(tier - 1 + COLOR_RAMP.length * 100) % COLOR_RAMP.length];
+    }
+    function formatTile(v) {
+      if (v < 1000) return String(v);
+      if (v < 1_000_000) return (v / 1000).toFixed(v % 1000 ? 1 : 0) + 'K';
+      if (v < 1_000_000_000) return (v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0) + 'M';
+      return (v / 1_000_000_000).toFixed(1) + 'B';
+    }
+    // Milestones keep rewarding the player as they blow past the old 512 cap — no upper limit.
+    const MILESTONES = [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072];
 
     api.setHud([
       { id: 'score', label: 'Score', value: 0 },
@@ -45,7 +57,7 @@ Game.register({
 
     function reset() {
       grid = Array.from({ length: N }, () => Array(N).fill(0));
-      score = 0; best = 0; over = false; reached = false;
+      score = 0; over = false; milestone = 0;
       addTile(); addTile(); render();
     }
     function empties() {
@@ -103,8 +115,14 @@ Game.register({
       else api.sound.play('swipe');
 
       const top = Math.max(...grid.flat());
-      api.updateHud('top', top);
-      if (top >= TARGET && !reached) { reached = true; win(top); return; }
+      api.updateHud('top', formatTile(top));
+
+      // Celebrate each milestone in passing, but never stop the run — merge to infinity.
+      if (milestone < MILESTONES.length && top >= MILESTONES[milestone]) {
+        milestone++;
+        api.sound.play('unlock');
+        api.toast(`🎉 ${formatTile(top)} tile!`);
+      }
       if (!canMove()) end(top);
     }
 
@@ -124,32 +142,36 @@ Game.register({
         cell.className = 'merge-cell';
         const v = grid[r][c];
         if (v) {
-          cell.textContent = v;
-          cell.style.background = COLORS[v] || '#7c5cff';
+          const label = formatTile(v);
+          cell.textContent = label;
+          cell.style.background = tileColor(v);
           cell.style.color = v <= 4 ? '#7a6a3a' : '#fff';
-          cell.style.fontSize = v >= 1000 ? '1.4rem' : v >= 100 ? '1.7rem' : '2rem';
+          cell.style.fontSize = label.length >= 5 ? '1.15rem' : label.length >= 4 ? '1.4rem' : v >= 100 ? '1.7rem' : '2rem';
           cell.classList.add('pop-tile');
         } else cell.classList.add('empty');
         board.appendChild(cell);
       }
     }
 
-    function win(top) {
-      api.win({
-        coins: 60 + Math.round(score / 8), xp: 70 + Math.round(score / 8),
-        title: 'You hit 512! 🏅', msg: `Final score ${score} — amazing merging!`,
-        emoji: '🔢', best: score, perfect: top >= 2048,
-        stats: [`🏆 best tile ${top}`, `⭐ ${score} pts`]
-      });
-    }
     function end(top) {
       over = true;
-      api.lose({
-        coins: 10 + Math.round(score / 10), xp: 12 + Math.round(score / 10),
-        title: 'Board full!', msg: `Score ${score}. Highest tile ${top}.`,
-        emoji: '🔢', best: score,
-        stats: [`🏆 best tile ${top}`, `⭐ ${score} pts`]
-      });
+      const cleared = top >= 512;   // reached (at least) the old cap — treat as a win, not a loss
+      const label = formatTile(top);
+      if (cleared) {
+        api.win({
+          coins: 60 + Math.round(score / 8), xp: 70 + Math.round(score / 8),
+          title: 'Board full — great run! 🏅', msg: `Final score ${score}. Best tile: ${label}.`,
+          emoji: '🔢', best: score, perfect: top >= 2048,
+          stats: [`🏆 best tile ${label}`, `⭐ ${score} pts`]
+        });
+      } else {
+        api.lose({
+          coins: 10 + Math.round(score / 10), xp: 12 + Math.round(score / 10),
+          title: 'Board full!', msg: `Score ${score}. Highest tile ${label}.`,
+          emoji: '🔢', best: score,
+          stats: [`🏆 best tile ${label}`, `⭐ ${score} pts`]
+        });
+      }
     }
 
     function onKey(e) {

@@ -101,7 +101,7 @@ Game.register({
         coins: 12 + successes * 12, xp: 15 + successes * 12,
         title: won ? 'Photographic memory! 📸' : `${successes} recalled! 🧮`,
         msg: won ? 'You memorized a 10-digit number!' : `You held ${len - 1} digits in your head!`,
-        emoji: '🧮', best: len - 1, perfect: won,
+        emoji: '🧮', best: successes > 0 ? len - 1 : 0, perfect: won,
         stats: [`🔢 ${len - 1} digits`, `✅ ${successes} recalled`]
       });
     }

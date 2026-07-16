@@ -82,6 +82,7 @@ Game.register({
     }
 
     function loop(t) {
+      if (api.isPaused()) { last = t; if (alive) raf = requestAnimationFrame(loop); return; }
       const dt = Math.min(3, (t - last) / 16.6);
       last = t;
       if (keys.l) bx -= 6.5 * dt;

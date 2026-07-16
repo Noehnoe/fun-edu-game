@@ -6,3 +6,6 @@ Thumbs.db
 # Cloudflare local dev state
 .wrangler/
 node_modules/
+
+# CrazyGames portal build output (regenerate with: node portal/build-crazygames.js)
+crazygames-build/

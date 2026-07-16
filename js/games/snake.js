@@ -58,13 +58,16 @@ Game.register({
     }
 
     function step(t) {
-      const dt = t - last; last = t; acc += dt;
-      if (acc >= speed) {
-        acc = 0; tick();
+      if (!api.isPaused()) {
+        const dt = t - last; acc += dt;
+        if (acc >= speed) { acc = 0; tick(); }
+        draw();
       }
-      draw();
+      last = t;
       if (alive) loop = requestAnimationFrame(step);
     }
+    // when resuming, drop the frame gap spent paused so the snake doesn't "jump" forward
+    api.onPauseChange(paused => { if (!paused) last = performance.now(); });
 
     function tick() {
       dir = nextDir;

@@ -90,16 +90,15 @@ Game.register({
       api.timeout(() => { if (timeLeft > 0) render(); }, 520);
     }
 
-    timer = setInterval(() => {
+    timer = api.interval(() => {
       timeLeft--;
       api.updateHud('time', timeLeft + 's', timeLeft <= 5);
       if (timeLeft <= 5 && timeLeft > 0) api.sound.play('tick');
       if (timeLeft <= 0) end();
     }, 1000);
-    api.onCleanup(() => clearInterval(timer));
 
     function end() {
-      clearInterval(timer);
+      api.clearTimer(timer);
       locked = true;
       const acc = answered ? Math.round((correct / answered) * 100) : 0;
       const perfect = answered >= 8 && correct === answered;
